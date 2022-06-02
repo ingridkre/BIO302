@@ -7,3 +7,7 @@ usethis::create_github_token()
 gitcreds::gitcreds_set()
 git_vaccinate()
 usethis::use_git()
+
+usethis::use_git()
+
+usethis::use_github()
