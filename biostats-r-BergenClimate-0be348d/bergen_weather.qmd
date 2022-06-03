@@ -1,0 +1,93 @@
+---
+title: "Climate change in Bergen"
+format: html
+editor: visual
+bibliography: references.bib
+csl: nordic-journal-of-botany.csl
+---
+
+```{r}
+#| label: load-packages
+library(tidyverse) # for ggplot2, dplyr, readr etc
+library(here)      # for help finding files
+library(lubridate) # for handling dates & times
+library(gt)        # for tables
+
+# default plot theme
+theme_set(theme_bw())
+
+# default number of digit
+options(digits = 2)
+```
+
+# Introduction
+
+Climate change is expected to have large impacts on both marine [@perry2005] and terrestrial ecosystems in Norway.
+
+# Methods
+
+## Data Analysis
+
+Climate data were downloaded from https://seklima.met.no/
+
+Data were analysed in R version `r paste(R.version$major, R.version$minor, sep = ".")` [@R], using tidyverse for data manipulation and plots [@tidyverse].
+
+Results
+
+```{r}
+#| label: load-data
+bergen <- read_delim(
+    file = here("data/bergen_weather.csv"), 
+    delim = ";", # ; are column delimiters
+    locale = locale(decimal_mark = ","), # , separate the decimal from the rest of the number
+    col_types = cols(`Tid(norsk normaltid)` = col_date(format = "%m.%Y")),
+    na = "-" # missing values denoted by "-"
+  ) |> 
+  # rename awkward columns
+  rename(date = `Tid(norsk normaltid)`, 
+         temperature = `Homogenisert middeltemperatur (mnd)`,
+         precipitation = `Nedbør (mnd)`) |> 
+  # filter out metadata on last line
+  filter(!stringr::str_detect(Navn, "Data er gyldig"))
+
+```
+
+```{r}
+#| label: model
+
+bergen_annual <- bergen |> 
+  mutate(year = year(date)) |> 
+  # remove 2022 - only two months of data
+  filter(year < 2022) |> 
+  group_by(year) |> 
+  summarise(annual_mean_temp = mean(temperature))
+
+mod <- lm(annual_mean_temp ~ year, data = bergen_annual)
+
+```
+
+@tbl-monthly-means shows the mean monthly temperatures for Bergen for the period `r min(year(bergen$date))`--`r max(year(bergen$date))`. Mean annual temperatures in Bergen have been increasing over the study period at a rate of `r coef(mod)[2] * 10`°C per decade.
+
+```{r}
+#| label: tbl-monthly-means
+#| tbl-cap: Mean monthly temperatures in Bergen
+
+bergen |> 
+  mutate(month = month(date, label = TRUE)) |> 
+  group_by(month) |> 
+  summarise(mean_temperature = mean(temperature, na.rm = TRUE)) |> 
+  gt() |> 
+  fmt_number(columns = mean_temperature, decimals = 1) |> 
+  cols_label(month = "Month", mean_temperature = "Temperature °C")
+  
+```
+
+```{r}
+#| label: fig-annual-temp
+
+ggplot(bergen_annual, aes(x = year, y = annual_mean_temp)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  geom_line() +
+  labs(x = "Year CE", y = "Mean annual temperature °C")
+```
