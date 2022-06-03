@@ -1,9 +1,12 @@
 ---
 title: "Climate change in Bergen"
 format: html
+author: "Ingrid Kregnes"
+date: today
 editor: visual
 bibliography: references.bib
-csl: nordic-journal-of-botany.csl
+csl: plos.csl
+echo: false
 ---
 
 ```{r}
@@ -22,7 +25,7 @@ options(digits = 2)
 
 # Introduction
 
-Climate change is expected to have large impacts on both marine [@perry2005] and terrestrial ecosystems in Norway.
+Climate change is expected to have large impacts on both marine [@perry2005] and terrestrial ecosystems in Norway [@topper2018].
 
 # Methods
 
@@ -32,7 +35,7 @@ Climate data were downloaded from https://seklima.met.no/
 
 Data were analysed in R version `r paste(R.version$major, R.version$minor, sep = ".")` [@R], using tidyverse for data manipulation and plots [@tidyverse].
 
-Results
+# Results
 
 ```{r}
 #| label: load-data
@@ -82,12 +85,44 @@ bergen |>
   
 ```
 
+The maximum annual mean temperature was recorded in `r max(bergen_annual$temperature)`\`
+
 ```{r}
 #| label: fig-annual-temp
+#| fig-cap: Mean annual temperature for Bergen
+#| fig-width: 5.2
+#| message: false
 
 ggplot(bergen_annual, aes(x = year, y = annual_mean_temp)) +
   geom_point() +
   geom_smooth(method = "lm") +
   geom_line() +
   labs(x = "Year CE", y = "Mean annual temperature °C")
+```
+
+```{r}
+bergen_annual_precipitation <- bergen |> 
+   mutate(year = year(date)) |> 
+  # remove 2022 - only two months of data
+  filter(year < 2022) |> 
+  group_by(year) |>
+  summarise(annual_precipitation = sum(precipitation, na.rm = TRUE)) |> 
+  filter(annual_precipitation > 0)
+  
+```
+
+```{r}
+ggplot(bergen_annual_precipitation, aes(x = year, y = annual_precipitation)) + geom_point() + labs(x = "Year", y = "Annual precipitation")
+```
+
+```{r}
+#| label: tbl-monthly-precip
+
+bergen |>
+  mutate(month = month(date, label = TRUE)) |>
+  group_by(month) |> 
+  summarise(mean_precip = mean(precipitation, na.rm = TRUE), sd = sd(precipitation, na.rm = TRUE)) |>
+  gt() |>
+  cols_label(month = "Month", mean_precip = "Precipiation", sd = "standard deviation")
+  
 ```
